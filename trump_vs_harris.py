@@ -48,7 +48,7 @@ def simulate_votes(df):
     return winner_list
 
 
-def simulate_voter_turnout(df, add_random_error = False):
+def simulate_election(df, add_random_error = False):
 
     df_copy = df.copy()
     
@@ -109,7 +109,7 @@ for _ in range(100):
     if iter_count % 10 == 0:
         print(f'running iteration {iter_count}')
 
-    winner, _ = simulate_voter_turnout(state_info, add_random_error = True)
+    winner, _ = simulate_election(state_info, add_random_error = True)
 
     election_winner_list.append(winner)
 
