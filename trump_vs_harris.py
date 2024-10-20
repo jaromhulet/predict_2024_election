@@ -5,39 +5,44 @@ state_info = pd.read_csv('state_info.csv')
 
 def simulate_votes(df):
 
+    '''
+        Takes state election information, simulates and sums individual votes
+        by state and determines if Trump of Harris won the state.
+
+        input:
+            df (DataFrame) : dataframe containing (1) simulated voter turnout
+                             (2) Harris poll numbers and (3) Trump poll numbers
+
+        returns: 
+            winner_list (list) : list, ordered by original state ordering in input df
+                                 of all 'Harris' and 'Trump' strings - representing
+                                 the winner of the corresponding state
+
+    '''
+
     voter_turnout_arr = df['Voter Turnout'].values
     harris_vote_poll_arr = df['Poll Numbers for Harris'].values/100
     trump_vote_poll_arr = df['Poll Numbers for Trump'].values/100
 
-    # print(f'harris poll #s')
-    # print(harris_vote_poll_arr[0:9])
-
-    # print(f'trump poll #s')
-    # print(trump_vote_poll_arr[0:9])
-
     winner_list = []
 
+    # loop through all states 
     for voter_turnout, harris_poll, trump_poll in zip(voter_turnout_arr, harris_vote_poll_arr, trump_vote_poll_arr):
         
+        # get random number from uniform distritbution with min = 0 and max = 1
         random_votes = np.random.uniform(0, 1, size=voter_turnout)
 
-        # print('votes')
-        # print(random_votes)
-
+        # compare random number to Harris polling numbers and assign vote according
         harris_votes = np.where(random_votes <= harris_poll, 1, 0)
         total_harris_votes = np.sum(harris_votes)
 
-        # print('harris votes')
-        # print(harris_votes)
-
+        # compare random number to Trump polling numbers and assign vote according
+        # note we add Trump poll #'s to Harris poll numbers so they are on different places in the number line
         trump_votes = np.where((random_votes > harris_poll) &
                                ((trump_poll + harris_poll) >= random_votes), 1, 0)
         total_trump_votes = np.sum(trump_votes)   
 
-        # print('Trump votes')
-        # print(trump_votes)
-
-
+        # compare state-wide votes for Trump and Harris to determine winner of state election
         if total_harris_votes > total_trump_votes:
             winner = 'Harris'
         else:
@@ -49,6 +54,24 @@ def simulate_votes(df):
 
 
 def simulate_election(df, add_random_error = False):
+
+    '''
+        Runs a full national election simulation given a dataframe with
+        historical voting information, electoral information and polling
+        information by state.
+        
+        inputs:
+            df (dataframe) : contains state specific info needed to simulate
+                            election
+            add_random_error (bool) : indicates if margin of error should be 
+                                    used to modify polling numbers randomly
+
+        outputs:
+            election_winner (list) : list ordered by state of winners
+            df_copy_short (dataframe) : dataframe with a row for each state 
+                                        and simulation and a column indicating
+                                        the winner
+        '''    
 
     df_copy = df.copy()
     
@@ -82,13 +105,10 @@ def simulate_election(df, add_random_error = False):
 
     df_copy['Trump Electoral Votes'] = np.where(df_copy['State Winner'] == 'Trump', df_copy['Electoral Votes'], 0)
 
-    # print(f'Harris electoral votes = {df_copy['Harris Electoral Votes'].sum()}')
-    # print(f'Trump electoral votes = {df_copy['Trump Electoral Votes'].sum()}')
-    # print(len(df_copy))
 
     # get the states that each candidate won
-    df_copy['harris_wins_bool'] = np.where(df_copy['Harris Electoral Votes'] != 0, 'Harris', np.nan)
-    df_copy['trump_wins_bool'] = np.where(df_copy['Trump Electoral Votes'] != 0, 'Trump', np.nan)
+    df_copy['harris_wins_bool'] = np.where(df_copy['Harris Electoral Votes'] != 0, 'Harris', None)
+    df_copy['trump_wins_bool'] = np.where(df_copy['Trump Electoral Votes'] != 0, 'Trump', None)
     df_copy['state_winner'] = df_copy['harris_wins_bool'].fillna(df_copy['trump_wins_bool'] )
 
 
@@ -97,21 +117,32 @@ def simulate_election(df, add_random_error = False):
     else:
         election_winner = 'Trump'
 
-    return election_winner, df_copy
+    df_copy_short = df_copy[['State', 'state_winner']]
+
+    return election_winner, df_copy_short
 
 # simulate multiple elections
 election_winner_list = []
 
 iter_count = 0
-for _ in range(100):
+for _ in range(1000):
 
     iter_count += 1
-    if iter_count % 10 == 0:
+    if iter_count % 100 == 0:
         print(f'running iteration {iter_count}')
 
-    winner, _ = simulate_election(state_info, add_random_error = True)
+    winner, temp_df = simulate_election(state_info, add_random_error = True)
+    temp_df['iter'] = iter_count
+
+    if iter_count == 1:
+        winner_df = temp_df
+    else:
+        winner_df = pd.concat([winner_df, temp_df], axis = 0)
 
     election_winner_list.append(winner)
+
+
+winner_df.to_csv('winner_results_error_100.csv')
 
 results_dict = {'winner' : election_winner_list}
 results_df = pd.DataFrame(results_dict)
